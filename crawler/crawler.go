@@ -33,8 +33,8 @@ func NewCrawler() *Crawler {
 	toVisit := make([]Page, 0)
 
 	// TODO: don't commit this!
-	os.Setenv(NotionApiKey, "secret_ay7xFS49gT4LrrejvjNARMiA06OLs423rabnYRDXgOi")
-	os.Setenv(TopLevelPageId, "6c67147fdb094ee6b47a1da836a7bf66")
+	os.Setenv(NotionApiKey, "lol")
+	os.Setenv(TopLevelPageId, "lol")
 
 	key := getNotionApiKey()
 
