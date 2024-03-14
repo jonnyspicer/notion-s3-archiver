@@ -6,9 +6,7 @@ import (
 	"fmt"
 	"github.com/jonnyspicer/go-notion"
 	"log"
-	"os"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -18,11 +16,9 @@ type Page struct {
 }
 
 type Crawler struct {
-	visited      map[string]string
-	toVisit      []Page
-	client       *notion.Client
-	visitedMutex sync.Mutex
-	newPagesChan chan Page
+	visited map[string]string
+	toVisit []Page
+	client  *notion.Client
 }
 
 func NewCrawler() *Crawler {
@@ -31,10 +27,6 @@ func NewCrawler() *Crawler {
 
 	// A queue of pages to visit
 	toVisit := make([]Page, 0)
-
-	// TODO: don't commit this!
-	os.Setenv(NotionApiKey, "lol")
-	os.Setenv(TopLevelPageId, "lol")
 
 	key := getNotionApiKey()
 
@@ -52,11 +44,9 @@ func (c *Crawler) CrawlPage(parentPage Page) error {
 	cursor := ""
 	more := true
 
-	fmt.Printf("Crawling page: %s", parentPage.parentTreePath)
-
 	for more {
 		pq := &notion.PaginationQuery{
-			StartCursor: cursor, // maybe this field needs to not be here at all?
+			StartCursor: cursor,
 			PageSize:    MaxPageSize,
 		}
 
@@ -70,13 +60,11 @@ func (c *Crawler) CrawlPage(parentPage Page) error {
 			if result.BlockType() == "child_page" {
 				// we're only interested in blocks we haven't already visited
 				if _, ok := c.visited[result.ID()]; !ok {
-					// this is pretty sloppy and I don't like it
 					childPage, err := c.pageFromBlock(parentPage.parentTreePath, result)
 					if err != nil {
 						return err
 					}
-					fmt.Printf("Sending child page to channel: %s", childPage.parentTreePath)
-					c.newPagesChan <- *childPage
+					c.toVisit = append(c.toVisit, *childPage)
 				}
 			}
 		}
@@ -95,33 +83,6 @@ func (c *Crawler) CrawlPage(parentPage Page) error {
 func (c *Crawler) FullCrawl() {
 	start := time.Now()
 
-	toVisitChan := make(chan Page, 10)
-	c.newPagesChan = make(chan Page, 100)
-
-	go func() {
-		for newPage := range c.newPagesChan {
-			c.toVisit = append(c.toVisit, newPage)
-			fmt.Printf("to visit: %+v", c.toVisit)
-		}
-	}()
-
-	var wg sync.WaitGroup
-
-	numWorkers := 5
-
-	for i := 0; i < numWorkers; i++ {
-		wg.Add(1)
-		go func(workerId int) {
-			defer wg.Done()
-			for page := range toVisitChan {
-				err := c.CrawlPage(page)
-				if err != nil {
-					fmt.Printf("Worker %d: %v\n", workerId, err)
-				}
-			}
-		}(i)
-	}
-
 	id := getTopLevelPageId()
 	rootPath := "/"
 	c.toVisit = append(c.toVisit, Page{
@@ -133,19 +94,20 @@ func (c *Crawler) FullCrawl() {
 		page := c.toVisit[0]
 		c.toVisit = c.toVisit[1:]
 
-		toVisitChan <- page
+		// It turns out that doing this with a worker pool runs into the rate limit
+		// So for now we'll just do it synchronously
+		err := c.CrawlPage(page)
+		if err != nil {
+			fmt.Println(err)
+		}
 	}
 
-	wg.Wait()
-	close(toVisitChan)
-	close(c.newPagesChan)
-
-	//fmt.Printf("%+v", c.listAllPageIds())
-	fmt.Println(len(c.visited))
+	//fmt.Printf("%+v", c.ListAllPageIds())
+	log.Printf("Found %s pages", len(c.visited))
 	log.Printf("Crawl time was: %s", time.Since(start))
 }
 
-func (c *Crawler) listAllPageIds() []string {
+func (c *Crawler) ListAllPageIds() []string {
 	ids := make([]string, len(c.visited))
 
 	i := 0
@@ -170,7 +132,7 @@ func (c *Crawler) pageFromBlock(parentTreePath string, block notion.Block) (*Pag
 }
 
 func (c *Crawler) normalisePath(path string) string {
-	path = strings.ToLower(path)
-	path = strings.Replace(path, " ", "-", -1)
+	//path = strings.ToLower(path)
+	//path = strings.Replace(path, " ", "-", -1)
 	return strings.TrimSpace(path)
 }

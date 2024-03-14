@@ -1,18 +1,45 @@
 # notion-utils
+A collection of small utilities for managing [Notion](https://www.notion.s) workspaces.
 
-## TODO
-1. ~~Non-programmatically move all the pages in my workspace under a single, top-level parent page. This not only makes it easier for the crawler, it also means I can easily share my entire workspace with an [integration](https://www.notion.so/integrations).~~
-2. ~~Create a hashmap of `visited` pages, and a queue of pages marked as `to_visit`.~~
-3. ~~Load in API key~~
-4. ~~Send a `GET` request to the API for all the child-blocks of that page (even though it’s a page, it can be treated like a block, and requests can be made to the `blocks` API with its `id`).~~
-5. ~~Handle pagination, as there is a max `page_size` of 100~~
-6. ~~Add the top-level page to the `visited` hashmap.~~
-7. ~~Parse the results for any links to other Notion pages. Check if they are in `visited`, and if not, add them to the `to_visit` queue.~~
-8. Use a worker pool to take pages from the `to_visit` queue, and repeat steps 3-6.
-9. Keep going until all threads are idle and the queue is empty.
+## Crawler
 
-## Notes 
-- Need to fix voyager keybindings for hash, slashes, tildes and pipes
-- Need to have API key and Page ID set as env vars
-- ~~Should remove everything copied from go-notion, once import is sorted~~
-- Remove setenv statements from crawler
+Recursively searches for any child pages from a given parent page, and returns a list of all links and paths relative to the parent.
+Handy for backups - consider moving everything in your workspace under a single top-level file if you'd like to back your whole workspace up.
+Runs synchronously due to Notion's API rate limiting.
+
+### Basic Usage
+
+Assumes you have environment variables for `NOTION_API_KEY` and `TOP_LEVEL_PAGE_ID` set. You get an API
+key when you create an [integration](https://www.notion.so/integrations), and the page ID is the hexadecimal suffix in the URL 
+of whichever page you are interested in having the crawler start at, eg for
+`https://spill.notion.site/Careers-at-Spill-93c02882604b4b3ebfb7be0222692847` the id is
+`93c02882604b4b3ebfb7be0222692847`.
+
+There are many ways to set environment variables - for testing, the easiest is to use `export`:
+```shell
+export NOTION_API_KEY="123apiKEY"
+export TOP_LEVEL_PAGE_ID="93c02882604b4b3ebfb7be0222692847"
+```
+
+Then install the `notion-utils` module. You'll need to have at least go 1.21 installed, or it'll complain.
+```shell
+go get github.com/jonnyspicer/notion-utils
+go install github.com/jonnyspicer/notion-utils
+```
+
+Now the module is available for import using: `import "github.com/jonnyspicer/notion-utils"`. The "Hello World"
+version of the crawler looks something like this:
+
+```go
+package main
+
+import (
+	"github.com/jonnyspicer/notion-utils/crawler"
+)
+
+func main() {
+	c := crawler.NewCrawler()
+	c.FullCrawl() 
+    c.ListAllPageIds()
+}
+```
