@@ -2,3 +2,5 @@ github.com/jonnyspicer/go-notion v0.11.1-0.20240314111511-ea6cf21a9eaa h1:9mAfYD
 github.com/jonnyspicer/go-notion v0.11.1-0.20240314111511-ea6cf21a9eaa/go.mod h1:7OZdrq3dqfpkKH9+ykwKCr6gYVTOkTTUKG5GApcjo/M=
 github.com/jonnyspicer/go-notion v0.11.1-0.20240314124050-03351dabfde1 h1:4nEkSUpBfgu+9XkVjOnwtQyLOBdB5dDXpEMXmawcw4o=
 github.com/jonnyspicer/go-notion v0.11.1-0.20240314124050-03351dabfde1/go.mod h1:7OZdrq3dqfpkKH9+ykwKCr6gYVTOkTTUKG5GApcjo/M=
+github.com/jonnyspicer/go-notion v0.11.1-0.20240314143553-5768abfdd4d6 h1:QJOCwWphJKYkMEysuX46XyzU0JVCMA/OL4hwDqN0aSo=
+github.com/jonnyspicer/go-notion v0.11.1-0.20240314143553-5768abfdd4d6/go.mod h1:7OZdrq3dqfpkKH9+ykwKCr6gYVTOkTTUKG5GApcjo/M=

@@ -5,5 +5,6 @@ import (
 )
 
 func main() {
-	crawler.Crawl()
+	crawler := crawler.NewCrawler()
+	crawler.FullCrawl()
 }

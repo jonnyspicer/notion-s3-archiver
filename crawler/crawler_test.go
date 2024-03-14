@@ -6,5 +6,6 @@ import (
 )
 
 func TestCrawl(t *testing.T) {
-	crawler.Crawl()
+	crawler := crawler.NewCrawler()
+	crawler.FullCrawl()
 }
