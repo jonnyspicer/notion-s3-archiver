@@ -1,6 +1,6 @@
-github.com/jonnyspicer/go-notion v0.11.1-0.20240314111511-ea6cf21a9eaa h1:9mAfYDBZmEP5x+Kc/I9q4zcOFN54IEOQ/c7jP54rEWY=
-github.com/jonnyspicer/go-notion v0.11.1-0.20240314111511-ea6cf21a9eaa/go.mod h1:7OZdrq3dqfpkKH9+ykwKCr6gYVTOkTTUKG5GApcjo/M=
-github.com/jonnyspicer/go-notion v0.11.1-0.20240314124050-03351dabfde1 h1:4nEkSUpBfgu+9XkVjOnwtQyLOBdB5dDXpEMXmawcw4o=
-github.com/jonnyspicer/go-notion v0.11.1-0.20240314124050-03351dabfde1/go.mod h1:7OZdrq3dqfpkKH9+ykwKCr6gYVTOkTTUKG5GApcjo/M=
+github.com/google/go-cmp v0.5.5 h1:Khx7svrCpmxxtHBq5j2mp/xVjsi8hQMfNLvJFAlrGgU=
+github.com/google/go-cmp v0.5.5/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/gNBxE=
 github.com/jonnyspicer/go-notion v0.11.1-0.20240314143553-5768abfdd4d6 h1:QJOCwWphJKYkMEysuX46XyzU0JVCMA/OL4hwDqN0aSo=
 github.com/jonnyspicer/go-notion v0.11.1-0.20240314143553-5768abfdd4d6/go.mod h1:7OZdrq3dqfpkKH9+ykwKCr6gYVTOkTTUKG5GApcjo/M=
+golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028 h1:+cNy6SZtPcJQH3LJVLOSmiC7MMxXNOb3PU/VUEz+EhU=
+golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028/go.mod h1:NDW/Ps6MPRej6fsCIbMTohpP40sJ/P/vI1MoTEGwX90=

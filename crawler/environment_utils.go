@@ -1,6 +1,8 @@
 package crawler
 
-import "os"
+import (
+	"os"
+)
 
 func getNotionApiKey() string {
 	return os.Getenv(NotionApiKey)

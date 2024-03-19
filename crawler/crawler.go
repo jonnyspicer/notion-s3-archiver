@@ -66,6 +66,18 @@ func (c *Crawler) CrawlPage(parentPage Page) error {
 					}
 					c.toVisit = append(c.toVisit, *childPage)
 				}
+			} else if result.BlockType() == "child_database" {
+				pages, err := c.getDatabaseChildPages(ctx, result.ID())
+				if err != nil {
+					fmt.Println(err)
+				}
+				for _, page := range pages {
+					if _, ok := c.visited[page.id]; !ok {
+						title, _ := c.getDatabaseChildPageTitle(ctx, page.id)
+						page.parentTreePath = c.normalisePath(parentPage.parentTreePath + title + "/")
+						c.toVisit = append(c.toVisit, *page)
+					}
+				}
 			}
 		}
 
@@ -102,8 +114,7 @@ func (c *Crawler) FullCrawl() {
 		}
 	}
 
-	//fmt.Printf("%+v", c.ListAllPageIds())
-	log.Printf("Found %s pages", len(c.visited))
+	log.Printf("Found %v pages", len(c.visited))
 	log.Printf("Crawl time was: %s", time.Since(start))
 }
 
@@ -132,7 +143,56 @@ func (c *Crawler) pageFromBlock(parentTreePath string, block notion.Block) (*Pag
 }
 
 func (c *Crawler) normalisePath(path string) string {
-	//path = strings.ToLower(path)
+	// TODO: the docs have a list of characters to avoid; decide whether to avoid them or not
+	// https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html
 	//path = strings.Replace(path, " ", "-", -1)
 	return strings.TrimSpace(path)
+}
+
+func (c *Crawler) getDatabaseChildPages(ctx context.Context, databaseId string) ([]*Page, error) {
+	more := true
+	cursor := ""
+	pages := make([]*Page, 0)
+
+	for more {
+		dq := &notion.DatabaseQuery{
+			Filter:      nil,
+			Sorts:       nil,
+			StartCursor: cursor,
+			PageSize:    MaxPageSize,
+		}
+		resp, err := c.client.QueryDatabase(ctx, databaseId, dq)
+		if err != nil {
+			log.Fatalf("Failed to query database: %s", err)
+		}
+
+		for _, result := range resp.Results {
+			pages = append(pages, &Page{
+				id:             result.ID,
+				parentTreePath: "",
+			})
+		}
+
+		more = resp.HasMore
+		if resp.NextCursor != nil {
+			cursor = *resp.NextCursor
+		}
+	}
+
+	return pages, nil
+}
+
+func (c *Crawler) getDatabaseChildPageTitle(ctx context.Context, pageId string) (string, error) {
+	resp, err := c.client.FindPageByID(ctx, pageId)
+	if err != nil {
+		log.Fatalf("Failed to get page title: %s", err)
+	}
+
+	title := resp.ID
+
+	if dbn, ok := resp.Properties.(notion.DatabasePageProperties)["Name"]; ok {
+		title = dbn.Title[0].PlainText
+	}
+
+	return title, err
 }
