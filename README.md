@@ -40,6 +40,6 @@ import (
 func main() {
 	c := crawler.NewCrawler()
 	c.FullCrawl() 
-    c.ListAllPageIds()
+	c.ListAllPageIds()
 }
 ```
