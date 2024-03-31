@@ -1,45 +1,42 @@
-# notion-utils
-A collection of small utilities for managing [Notion](https://www.notion.s) workspaces.
+# notion-s3-archiver
+A utility to back up any [Notion](https://www.notion.so) page, and all its subpages, to AWS S3 Glacier Deep Archive.
 
-## Crawler
+## Basic Usage
 
-Recursively searches for any child pages from a given parent page, and returns a list of all links and paths relative to the parent.
-Handy for backups - consider moving everything in your workspace under a single top-level file if you'd like to back your whole workspace up.
-Runs synchronously due to Notion's API rate limiting.
-
-### Basic Usage
-
-Assumes you have environment variables for `NOTION_API_KEY` and `TOP_LEVEL_PAGE_ID` set. You get an API
+Assumes you several environment variables set; `NOTION_API_KEY`,  `NOTION_TOP_LEVEL_PAGE_ID`, `NOTION_OUTPUT_DIR`, 
+`NOTION_BUCKET_NAME`, `NOTION_SNS_TOPIC_ARN` and `NOTION_AWS_REGION`. You get an API
 key when you create an [integration](https://www.notion.so/integrations), and the page ID is the hexadecimal suffix in the URL 
 of whichever page you are interested in having the crawler start at, eg for
 `https://spill.notion.site/Careers-at-Spill-93c02882604b4b3ebfb7be0222692847` the id is
-`93c02882604b4b3ebfb7be0222692847`.
+`93c02882604b4b3ebfb7be0222692847`. The output directory is where the downloaded json data will be stored - 
+NB this directory will be created by the script, so you only need to provide the path. The bucket and
+SNS names are the bucket to be uploaded to, and the topic which log messages will get published to - both of these must
+be in the specified AWS rwegion.
 
 There are many ways to set environment variables - for testing, the easiest is to use `export`:
 ```shell
 export NOTION_API_KEY="123apiKEY"
-export TOP_LEVEL_PAGE_ID="93c02882604b4b3ebfb7be0222692847"
+export NOTION_TOP_LEVEL_PAGE_ID="93c02882604b4b3ebfb7be0222692847"
+export NOTION_OUTPUT_DIR="/users/linus/repositories/notion-s3-archiver/out"
+export NOTION_BUCKET_NAME="notion-s3-archive-bucket"
+export NOTION_SNS_TOPIC_ARN="arn:aws:sns:eu-north-1:000000000000:my-sns-topic"
+export NOTION_AWS_REGION="us-east-1"
 ```
 
-Then install the `notion-utils` module. You'll need to have at least go 1.21 installed, or it'll complain.
+Then download the repo, build the module and run the code.
 ```shell
-go get github.com/jonnyspicer/notion-utils
-go install github.com/jonnyspicer/notion-utils
+git clone https://github.com/jonnyspicer/notion-s3-archiver.git
+cd notion-s3-archiver
+go build
+./notion-s3-archiver
 ```
 
-Now the module is available for import using: `import "github.com/jonnyspicer/notion-utils"`. The "Hello World"
-version of the crawler looks something like this:
+Don't be alarmed if this seems to take a while - the Notion API is rate-limited and so all operations in the script
+are executed synchronously. As an example, my workspace contains roughly 4500 pages and takes around 3 hours for the
+crawl alone.
 
-```go
-package main
-
-import (
-	"github.com/jonnyspicer/notion-utils/crawler"
-)
-
-func main() {
-	c := crawler.NewCrawler()
-	c.FullCrawl() 
-	c.ListAllPageIds()
-}
-```
+## Future Improvements
+1. Make the tool more customisable (eg SNS topic no longer required)
+2. Add alternate places to store archived data, including on disk
+3. Add options for eg bucket versioning, other S3 storage classes
+4. Extract the crawler and the archiver out, document them etc

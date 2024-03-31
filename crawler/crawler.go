@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jonnyspicer/go-notion"
+	"github.com/jonnyspicer/notion-s3-archiver/utils"
 	"log"
 	"strings"
 	"time"
@@ -19,6 +20,7 @@ type Crawler struct {
 	visited map[string]string
 	toVisit []Page
 	client  *notion.Client
+	ctx     context.Context
 }
 
 func NewCrawler() *Crawler {
@@ -28,31 +30,34 @@ func NewCrawler() *Crawler {
 	// A queue of pages to visit
 	toVisit := make([]Page, 0)
 
-	key := getNotionApiKey()
+	key := utils.GetNotionApiKey()
 
 	client := notion.NewClient(key)
+
+	ctx := context.Background()
 
 	return &Crawler{
 		visited: visited,
 		toVisit: toVisit,
 		client:  client,
+		ctx:     ctx,
 	}
 }
 
 func (c *Crawler) CrawlPage(parentPage Page) error {
-	ctx := context.Background()
 	cursor := ""
 	more := true
 
 	for more {
 		pq := &notion.PaginationQuery{
 			StartCursor: cursor,
-			PageSize:    MaxPageSize,
+			PageSize:    utils.MaxPageSize,
 		}
 
-		resp, err := c.client.FindBlockChildrenByID(ctx, parentPage.id, pq)
+		resp, err := c.client.FindBlockChildrenByID(c.ctx, parentPage.id, pq)
 		if err != nil {
-			log.Fatalf("Failed to find block children: %v", err)
+			log.Printf("Failed to find block children: %v\n", err)
+			return err
 		}
 
 		for _, result := range resp.Results {
@@ -62,19 +67,23 @@ func (c *Crawler) CrawlPage(parentPage Page) error {
 				if _, ok := c.visited[result.ID()]; !ok {
 					childPage, err := c.pageFromBlock(parentPage.parentTreePath, result)
 					if err != nil {
-						return err
+						log.Printf("unable to get page from block, err: %v\n", err)
 					}
 					c.toVisit = append(c.toVisit, *childPage)
 				}
 			} else if result.BlockType() == "child_database" {
-				pages, err := c.getDatabaseChildPages(ctx, result.ID())
+				pages, err := c.getDatabaseChildPages(result.ID())
 				if err != nil {
-					fmt.Println(err)
+					log.Printf("Failed to query database: %s\n", err)
 				}
 				for _, page := range pages {
 					if _, ok := c.visited[page.id]; !ok {
-						title, _ := c.getDatabaseChildPageTitle(ctx, page.id)
-						page.parentTreePath = c.normalisePath(parentPage.parentTreePath + title + "/")
+						title, err := c.getDatabaseChildPageTitle(page.id)
+						if err != nil {
+							log.Println(err)
+						} else {
+							page.parentTreePath = c.normalisePath(parentPage.parentTreePath + title + "|")
+						}
 						c.toVisit = append(c.toVisit, *page)
 					}
 				}
@@ -95,8 +104,8 @@ func (c *Crawler) CrawlPage(parentPage Page) error {
 func (c *Crawler) FullCrawl() {
 	start := time.Now()
 
-	id := getTopLevelPageId()
-	rootPath := "/"
+	id := utils.GetTopLevelPageId()
+	rootPath := "Everything Everywhere All At Once|"
 	c.toVisit = append(c.toVisit, Page{
 		id:             id,
 		parentTreePath: rootPath,
@@ -110,12 +119,12 @@ func (c *Crawler) FullCrawl() {
 		// So for now we'll just do it synchronously
 		err := c.CrawlPage(page)
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
 		}
 	}
 
-	log.Printf("Found %v pages", len(c.visited))
-	log.Printf("Crawl time was: %s", time.Since(start))
+	log.Printf("Found %v pages\n", len(c.visited))
+	log.Printf("Crawl time was: %s\n", time.Since(start))
 }
 
 func (c *Crawler) ListAllPageIds() []string {
@@ -130,12 +139,16 @@ func (c *Crawler) ListAllPageIds() []string {
 	return ids
 }
 
+func (c *Crawler) ListAlLPages() map[string]string {
+	return c.visited
+}
+
 func (c *Crawler) pageFromBlock(parentTreePath string, block notion.Block) (*Page, error) {
 	id := block.ID()
 	if title, ok := block.Extras().(map[string]string)["title"]; ok {
 		return &Page{
 			id:             id,
-			parentTreePath: c.normalisePath(parentTreePath + title + "/"),
+			parentTreePath: c.normalisePath(parentTreePath + title + "|"),
 		}, nil
 	} else {
 		return nil, errors.New(fmt.Sprintf("error retrieving title from extras field on block with id %s", block.ID()))
@@ -145,11 +158,11 @@ func (c *Crawler) pageFromBlock(parentTreePath string, block notion.Block) (*Pag
 func (c *Crawler) normalisePath(path string) string {
 	// TODO: the docs have a list of characters to avoid; decide whether to avoid them or not
 	// https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html
-	//path = strings.Replace(path, " ", "-", -1)
+	path = strings.Replace(path, " ", "%20", -1)
 	return strings.TrimSpace(path)
 }
 
-func (c *Crawler) getDatabaseChildPages(ctx context.Context, databaseId string) ([]*Page, error) {
+func (c *Crawler) getDatabaseChildPages(databaseId string) ([]*Page, error) {
 	more := true
 	cursor := ""
 	pages := make([]*Page, 0)
@@ -159,11 +172,11 @@ func (c *Crawler) getDatabaseChildPages(ctx context.Context, databaseId string) 
 			Filter:      nil,
 			Sorts:       nil,
 			StartCursor: cursor,
-			PageSize:    MaxPageSize,
+			PageSize:    utils.MaxPageSize,
 		}
-		resp, err := c.client.QueryDatabase(ctx, databaseId, dq)
+		resp, err := c.client.QueryDatabase(c.ctx, databaseId, dq)
 		if err != nil {
-			log.Fatalf("Failed to query database: %s", err)
+			return nil, err
 		}
 
 		for _, result := range resp.Results {
@@ -182,15 +195,18 @@ func (c *Crawler) getDatabaseChildPages(ctx context.Context, databaseId string) 
 	return pages, nil
 }
 
-func (c *Crawler) getDatabaseChildPageTitle(ctx context.Context, pageId string) (string, error) {
-	resp, err := c.client.FindPageByID(ctx, pageId)
+func (c *Crawler) getDatabaseChildPageTitle(pageId string) (string, error) {
+	resp, err := c.client.FindPageByID(c.ctx, pageId)
 	if err != nil {
-		log.Fatalf("Failed to get page title: %s", err)
+		log.Printf("Failed to get page title: %s\n", err)
+		return "", nil
 	}
 
 	title := resp.ID
 
-	if dbn, ok := resp.Properties.(notion.DatabasePageProperties)["Name"]; ok {
+	dbn, ok := resp.Properties.(notion.DatabasePageProperties)["Name"]
+
+	if ok && dbn.Title != nil && len(dbn.Title) > 0 {
 		title = dbn.Title[0].PlainText
 	}
 
